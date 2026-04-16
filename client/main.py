@@ -5,6 +5,7 @@ Windows Terminal Client
 - Thin client: UI only, no execution logic
 - Communicates with Gateway via HTTPS + SSE streaming
 - Token stored in memory only, never persisted
+- Supports /COMMAND slash command syntax
 """
 
 import getpass
@@ -26,6 +27,7 @@ class Client:
         self._token = None
         self._session_id = None
         self._http = requests.Session()
+        self._slash_commands: list[dict] = []  # cached from gateway
 
     # ------------------------------------------------------------------
     # Auth
@@ -83,6 +85,32 @@ class Client:
             self._http.headers.pop("Authorization", None)
 
     # ------------------------------------------------------------------
+    # Slash command discovery
+    # ------------------------------------------------------------------
+
+    def fetch_commands(self):
+        """Fetch available slash commands from gateway (best-effort)."""
+        try:
+            resp = self._http.get(
+                urljoin(GATEWAY_URL, "/commands"),
+                timeout=CONNECT_TIMEOUT,
+            )
+            resp.raise_for_status()
+            self._slash_commands = resp.json()
+        except Exception:
+            pass  # Non-critical; fallback to /help command
+
+    def show_slash_help(self):
+        """Print locally cached slash command list."""
+        if not self._slash_commands:
+            print("  (명령어 목록을 불러올 수 없습니다. '/help'를 실행하세요)")
+            return
+        print("사용 가능한 슬래시 명령어:")
+        for cmd in self._slash_commands:
+            approval = " [승인 필요]" if cmd.get("requires_approval") else ""
+            print(f"  {cmd['command']:<18} {cmd['description']}{approval}")
+
+    # ------------------------------------------------------------------
     # Command
     # ------------------------------------------------------------------
 
@@ -90,6 +118,10 @@ class Client:
         if not self._session_id:
             _print_error("활성 세션이 없습니다.")
             return
+
+        # Visual prefix for slash commands
+        if command.startswith("/"):
+            print(f"[/] {command}", flush=True)
 
         try:
             with self._http.post(
@@ -132,6 +164,8 @@ class Client:
         msg_type = obj.get("type", "text")
         if msg_type == "approval":
             self._handle_approval(obj)
+        elif msg_type == "error":
+            print(f"[오류] {obj.get('content', '')}", flush=True)
         else:
             print(obj.get("content", ""), end="", flush=True)
 
@@ -167,7 +201,8 @@ def _print_banner():
     print("  Maha Terminal Client")
     print(f"  Gateway: {GATEWAY_URL}")
     print("=" * 50)
-    print("  종료: 'exit' 입력 또는 Ctrl+C")
+    print("  종료    : 'exit' 또는 Ctrl+C")
+    print("  명령 목록: '/' 단독 입력 또는 '/help'")
     print()
 
 
@@ -197,6 +232,7 @@ def main():
     if not client.start_session():
         sys.exit(1)
 
+    client.fetch_commands()
     print("\n세션이 시작됐습니다.\n")
 
     while True:
@@ -206,6 +242,11 @@ def main():
             break
 
         if not command:
+            continue
+
+        # '/' 단독 입력 → 로컬 캐시된 명령어 목록 표시
+        if command == "/":
+            client.show_slash_help()
             continue
 
         if command.lower() in ("exit", "quit", "종료"):

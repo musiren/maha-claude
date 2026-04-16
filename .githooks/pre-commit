@@ -1,20 +1,25 @@
 #!/bin/bash
 # pre-commit: Run pytest before allowing a commit.
 #
+# Each component directory (client/, gateway/, etc.) is tested independently
+# with its own PYTHONPATH to avoid module name collisions.
+#
 # - No test files found  → warn and allow commit
 # - Test files found, all pass  → allow commit
 # - Test files found, any fail  → block commit (exit 1)
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
-PYTEST_BIN=""
+PYTEST_BIN="${PYTEST_BIN:-}"
 
-# Locate pytest: prefer venv, then user install, then PATH.
-if [[ -x "$REPO_ROOT/.venv/bin/pytest" ]]; then
-    PYTEST_BIN="$REPO_ROOT/.venv/bin/pytest"
-elif [[ -x "/root/.local/bin/pytest" ]]; then
-    PYTEST_BIN="/root/.local/bin/pytest"
-elif command -v pytest >/dev/null 2>&1; then
-    PYTEST_BIN="pytest"
+# Locate pytest.
+if [[ -z "$PYTEST_BIN" ]]; then
+    if [[ -x "$REPO_ROOT/.venv/bin/pytest" ]]; then
+        PYTEST_BIN="$REPO_ROOT/.venv/bin/pytest"
+    elif [[ -x "/root/.local/bin/pytest" ]]; then
+        PYTEST_BIN="/root/.local/bin/pytest"
+    elif command -v pytest >/dev/null 2>&1; then
+        PYTEST_BIN="pytest"
+    fi
 fi
 
 if [[ -z "$PYTEST_BIN" ]]; then
@@ -23,28 +28,47 @@ if [[ -z "$PYTEST_BIN" ]]; then
     exit 0
 fi
 
-# Discover test files.
-mapfile -t TEST_FILES < <(
-    find "$REPO_ROOT" \
+# Find component directories that contain <component>/tests/test_*.py.
+# Pattern: REPO_ROOT/<component>/tests/test_*.py  (depth 3 from root)
+mapfile -t COMPONENT_DIRS < <(
+    find "$REPO_ROOT" -mindepth 3 -maxdepth 3 \
         -not -path '*/.git/*' \
         -not -path '*/__pycache__/*' \
         \( -name 'test_*.py' -o -name '*_test.py' \) \
-        2>/dev/null
+        | sed 's|/tests/[^/]*$||' \
+        | sort -u
 )
 
-if [[ ${#TEST_FILES[@]} -eq 0 ]]; then
+if [[ ${#COMPONENT_DIRS[@]} -eq 0 ]]; then
     echo "[pre-commit] WARNING: No test files found. Skipping pytest." >&2
-    echo "[pre-commit] Add tests to client/tests/test_*.py to enable enforcement." >&2
+    echo "[pre-commit] Add tests to <component>/tests/test_*.py to enable enforcement." >&2
     exit 0
 fi
 
-echo "[pre-commit] Running pytest (${#TEST_FILES[@]} test file(s) found)..." >&2
+FAILED=0
 
-if "$PYTEST_BIN" --tb=short -q "$REPO_ROOT"; then
-    echo "[pre-commit] All tests passed." >&2
-    exit 0
-else
+for COMPONENT_DIR in "${COMPONENT_DIRS[@]}"; do
+    COMPONENT_NAME="$(basename "$COMPONENT_DIR")"
+    TEST_DIR="$COMPONENT_DIR/tests"
+
+    if [[ ! -d "$TEST_DIR" ]]; then
+        continue
+    fi
+
+    echo "[pre-commit] Testing $COMPONENT_NAME/ ..." >&2
+
+    if PYTHONPATH="$COMPONENT_DIR" "$PYTEST_BIN" --tb=short -q "$TEST_DIR"; then
+        echo "[pre-commit] $COMPONENT_NAME: all tests passed." >&2
+    else
+        echo "[pre-commit] $COMPONENT_NAME: TESTS FAILED." >&2
+        FAILED=1
+    fi
+done
+
+if [[ $FAILED -ne 0 ]]; then
     echo "" >&2
-    echo "[pre-commit] COMMIT BLOCKED: Tests failed. Fix failures before committing." >&2
+    echo "[pre-commit] COMMIT BLOCKED: Fix test failures before committing." >&2
     exit 1
 fi
+
+exit 0
