@@ -1,0 +1,50 @@
+#!/bin/bash
+# pre-commit: Run pytest before allowing a commit.
+#
+# - No test files found  → warn and allow commit
+# - Test files found, all pass  → allow commit
+# - Test files found, any fail  → block commit (exit 1)
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+PYTEST_BIN=""
+
+# Locate pytest: prefer venv, then user install, then PATH.
+if [[ -x "$REPO_ROOT/.venv/bin/pytest" ]]; then
+    PYTEST_BIN="$REPO_ROOT/.venv/bin/pytest"
+elif [[ -x "/root/.local/bin/pytest" ]]; then
+    PYTEST_BIN="/root/.local/bin/pytest"
+elif command -v pytest >/dev/null 2>&1; then
+    PYTEST_BIN="pytest"
+fi
+
+if [[ -z "$PYTEST_BIN" ]]; then
+    echo "[pre-commit] WARNING: pytest not found. Skipping test check." >&2
+    echo "[pre-commit] Install with: pip install pytest" >&2
+    exit 0
+fi
+
+# Discover test files.
+mapfile -t TEST_FILES < <(
+    find "$REPO_ROOT" \
+        -not -path '*/.git/*' \
+        -not -path '*/__pycache__/*' \
+        \( -name 'test_*.py' -o -name '*_test.py' \) \
+        2>/dev/null
+)
+
+if [[ ${#TEST_FILES[@]} -eq 0 ]]; then
+    echo "[pre-commit] WARNING: No test files found. Skipping pytest." >&2
+    echo "[pre-commit] Add tests to client/tests/test_*.py to enable enforcement." >&2
+    exit 0
+fi
+
+echo "[pre-commit] Running pytest (${#TEST_FILES[@]} test file(s) found)..." >&2
+
+if "$PYTEST_BIN" --tb=short -q "$REPO_ROOT"; then
+    echo "[pre-commit] All tests passed." >&2
+    exit 0
+else
+    echo "" >&2
+    echo "[pre-commit] COMMIT BLOCKED: Tests failed. Fix failures before committing." >&2
+    exit 1
+fi

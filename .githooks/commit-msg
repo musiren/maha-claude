@@ -1,0 +1,94 @@
+#!/bin/bash
+# commit-msg: Validates Linux kernel commit message format.
+#
+# Enforced (exit 1 = block commit):
+#   1. Subject line must not be blank
+#   2. Subject line max 72 characters
+#   3. Subject line must not end with a period
+#   4. If body present: line 2 must be blank separator
+#   5. Body lines max 72 characters
+#   6. No trailing whitespace on any line
+#
+# Warned only (exit 0 = allow with message):
+#   W1. Recommend "subsystem: description" prefix format
+
+COMMIT_MSG_FILE="$1"
+ERRORS=()
+WARNINGS=()
+
+# Strip comment lines to get actual message content.
+mapfile -t LINES < <(grep -v '^#' "$COMMIT_MSG_FILE")
+
+# Remove trailing blank lines.
+while [[ ${#LINES[@]} -gt 0 && -z "${LINES[-1]}" ]]; do
+    unset 'LINES[-1]'
+done
+
+if [[ ${#LINES[@]} -eq 0 ]]; then
+    echo "commit-msg: ERROR: Commit message is empty." >&2
+    exit 1
+fi
+
+SUBJECT="${LINES[0]}"
+
+# Rule 1: Subject must not be blank.
+if [[ -z "$(echo "$SUBJECT" | tr -d '[:space:]')" ]]; then
+    ERRORS+=("Subject line is blank.")
+fi
+
+# Rule 2: Subject max 72 characters.
+SUBJECT_LEN=${#SUBJECT}
+if [[ $SUBJECT_LEN -gt 72 ]]; then
+    ERRORS+=("Subject line is ${SUBJECT_LEN} chars (max 72): \"${SUBJECT}\"")
+fi
+
+# Rule 3: Subject must not end with a period.
+if [[ "$SUBJECT" =~ \.$ ]]; then
+    ERRORS+=("Subject line must not end with a period: \"${SUBJECT}\"")
+fi
+
+# Rule 4: If body exists, line 2 must be blank.
+if [[ ${#LINES[@]} -ge 2 && -n "${LINES[1]}" ]]; then
+    ERRORS+=("Line 2 must be blank (separator between subject and body). Got: \"${LINES[1]}\"")
+fi
+
+# Rules 5 & 6: Body lines max 72 chars, no trailing whitespace on any line.
+for i in "${!LINES[@]}"; do
+    LINE="${LINES[$i]}"
+    LINENUM=$((i + 1))
+
+    if [[ "$LINE" =~ [[:space:]]$ ]]; then
+        ERRORS+=("Line ${LINENUM} has trailing whitespace.")
+    fi
+
+    if [[ $i -ge 2 && ${#LINE} -gt 72 ]]; then
+        ERRORS+=("Body line ${LINENUM} is ${#LINE} chars (max 72): \"${LINE}\"")
+    fi
+done
+
+# Warning W1: Recommend "subsystem: description" format.
+if [[ ! "$SUBJECT" =~ ^[a-zA-Z][a-zA-Z0-9/_-]*:[[:space:]] ]]; then
+    WARNINGS+=("Recommended format: \"subsystem: brief description\" (e.g., client: add login retry logic)")
+fi
+
+# Output warnings (non-blocking).
+for w in "${WARNINGS[@]}"; do
+    echo "commit-msg: WARNING: $w" >&2
+done
+
+# Output errors and block if any.
+if [[ ${#ERRORS[@]} -gt 0 ]]; then
+    echo "" >&2
+    echo "commit-msg: COMMIT BLOCKED - message does not follow Linux kernel format:" >&2
+    for e in "${ERRORS[@]}"; do
+        echo "  - $e" >&2
+    done
+    echo "" >&2
+    echo "commit-msg: Rules:" >&2
+    echo "  Subject : max 72 chars, no trailing period, no trailing whitespace" >&2
+    echo "  Format  : \"subsystem: brief description\" (imperative mood)" >&2
+    echo "  Body    : blank line after subject, lines wrapped at 72 chars" >&2
+    exit 1
+fi
+
+exit 0
