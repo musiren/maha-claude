@@ -34,17 +34,30 @@ _CONFIG: dict = {}
 
 
 def _load_config() -> dict:
-    config_path = os.environ.get(
-        "CONFIG_PATH", os.path.join(_BASE_DIR, "config.json")
-    )
-    try:
-        with open(config_path, encoding="utf-8") as f:
-            cfg = json.load(f)
-    except FileNotFoundError:
-        cfg = {}
-    except json.JSONDecodeError as e:
-        print(f"[경고] config.json 파싱 오류: {e}")
-        cfg = {}
+    # When frozen: check next to the exe first so users can edit it,
+    # then fall back to the bundled default inside the archive.
+    if "CONFIG_PATH" in os.environ:
+        candidates = [os.environ["CONFIG_PATH"]]
+    elif getattr(sys, "frozen", False):
+        exe_dir = os.path.dirname(sys.executable)
+        candidates = [
+            os.path.join(exe_dir, "config.json"),          # editable, beside exe
+            os.path.join(_BASE_DIR, "config.json"),        # bundled default
+        ]
+    else:
+        candidates = [os.path.join(_BASE_DIR, "config.json")]
+
+    cfg: dict = {}
+    for config_path in candidates:
+        try:
+            with open(config_path, encoding="utf-8") as f:
+                cfg = json.load(f)
+            break
+        except FileNotFoundError:
+            continue
+        except json.JSONDecodeError as e:
+            print(f"[경고] {config_path} 파싱 오류: {e}")
+            break
 
     # Environment variables override config file values
     if "GATEWAY_URL" in os.environ:
