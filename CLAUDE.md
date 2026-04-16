@@ -191,3 +191,47 @@
 
 각 계층은 독립적으로 동작하지만,
 이 문서의 규칙을 반드시 따른다.
+
+---
+
+## 17. 개발 환경 설정 규칙
+
+### 17.1 최초 설정
+
+저장소를 클론한 후 반드시 실행한다:
+
+```bash
+bash setup.sh
+```
+
+또는 수동으로:
+
+```bash
+git config core.hooksPath .githooks
+chmod +x .githooks/pre-commit .githooks/commit-msg
+pip install -r client/requirements-dev.txt
+```
+
+### 17.2 커밋 메시지 규칙 (Linux Kernel Format)
+
+모든 커밋 메시지는 Linux 커널 형식을 따른다:
+
+- **제목줄**: 최대 72자, 마침표 없음, 명령형 현재 시제
+- **형식**: `subsystem: 간략한 설명` (예: `client: add login timeout`)
+- **본문**: 제목 다음 빈 줄, 각 줄 최대 72자
+- **공백**: 줄 끝 공백 금지
+
+허용되는 subsystem 접두어: `client`, `gateway`, `orchestrator`,
+`ci`, `docs`, `test`, `build`
+
+### 17.3 커밋 전 테스트
+
+- 커밋 전 pytest가 자동으로 실행된다 (pre-commit hook)
+- 테스트 파일이 없으면 경고만 출력하고 커밋 허용
+- 테스트가 존재하고 실패하면 커밋 차단
+
+### 17.4 Push 전 확인
+
+- `git push` 실행 전 반드시 사용자에게 확인을 받는다
+- Push할 브랜치, 리모트, 커밋 수를 사용자에게 알린다
+- 사용자가 명시적으로 승인해야 push 진행

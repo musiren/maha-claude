@@ -1,0 +1,32 @@
+v20260416
+=========
+
+Major Updates
+-------------
+
+* client: Add Windows Terminal Client (client/main.py)
+  - Thin client architecture with HTTPS + SSE streaming
+  - Login/authentication with in-memory token storage
+  - Session management (start/end) with timeout support
+  - Streaming response output
+  - Approval request handling
+
+* build: Add test enforcement via git hooks (.githooks/)
+  - pre-commit hook runs pytest before each commit
+  - commit-msg hook enforces Linux kernel commit message format
+  - Tests blocked from commit if any test fails
+
+* build: Add unit tests for Client class (client/tests/)
+  - 7 unit tests covering login, session, and auth flows
+  - All HTTP calls mocked (no real network connections)
+
+* docs: Reorganize documentation into skills/ directory
+  - skills/client/CLAUDE.md
+  - skills/gateway/CLAUDE.md
+  - skills/orchestrator/CLAUDE.md
+
+* build: Add development environment setup (setup.sh)
+  - One-time repo setup script for git hooks and dependencies
+  - client/requirements-dev.txt with pytest dependency
+
+* build: Add .gitignore for Python cache files
