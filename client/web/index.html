@@ -337,7 +337,7 @@ a{color:var(--blue);text-decoration:none}
     <div class="login-sub">Gateway에 연결하여 시작하세요</div>
   </div>
   <div class="field">
-    <label>Gateway URL</label>
+    <label>Gateway URL <span id="gw-source" style="font-size:10px;color:var(--text3);font-weight:400"></span></label>
     <input id="f-gw" value="http://localhost:8000">
   </div>
   <div class="field">
@@ -438,6 +438,20 @@ a{color:var(--blue);text-decoration:none}
 let GW = 'http://localhost:8000';
 let token = null, sessId = null, userName = null;
 let cmds = [], busy = false;
+
+// ── config (fetched from web server /config) ────────────────────────────────
+(async () => {
+  try {
+    const r = await fetch('/config');
+    if (!r.ok) return;
+    const cfg = await r.json();
+    if (cfg.gateway_url) {
+      GW = cfg.gateway_url;
+      document.getElementById('f-gw').value = cfg.gateway_url;
+      document.getElementById('gw-source').textContent = '(config.json)';
+    }
+  } catch { /* standalone mode — no web server */ }
+})();
 
 // ── login ──────────────────────────────────────────────────────────────────
 document.getElementById('f-user').onkeydown = e => e.key==='Enter' && document.getElementById('f-pass').focus();
