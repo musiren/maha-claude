@@ -5,7 +5,8 @@ from typing import AsyncIterator
 
 
 class BaseTool(ABC):
-    name: str = ""
+    name: str = ""             # plain command name (e.g. "echo")
+    slash_command: str = ""    # slash command name (e.g. "/echo") — set to enable /CMD syntax
     description: str = ""
     requires_approval: bool = False
 

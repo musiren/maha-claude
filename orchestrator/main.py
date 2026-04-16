@@ -21,7 +21,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from approval import approval_manager
-from engine import run
+from engine import get_slash_commands, run
 
 logging.basicConfig(
     level=logging.INFO,
@@ -65,6 +65,12 @@ async def run_command(req: RunRequest):
 @app.post("/approve", status_code=204)
 async def approve(req: ApproveRequest):
     approval_manager.resolve(req.approval_id, req.approved)
+
+
+@app.get("/commands")
+async def list_commands():
+    """Return available slash commands and their metadata."""
+    return get_slash_commands()
 
 
 @app.get("/health")

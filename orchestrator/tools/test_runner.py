@@ -20,7 +20,8 @@ TEST_ROOT = os.environ.get("TEST_ROOT", "/home/user/maha-claude")
 
 class TestRunnerTool(BaseTool):
     name = "run tests"
-    description = "pytest를 실행합니다. 사용법: run tests [경로]"
+    slash_command = "/run-tests"
+    description = "pytest를 실행합니다. 사용법: /run-tests [경로]"
     requires_approval = True
 
     async def execute(self, args: str, session_id: str) -> AsyncIterator[str]:

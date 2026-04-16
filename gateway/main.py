@@ -224,6 +224,23 @@ async def _stream_command(
 
 
 # ---------------------------------------------------------------------------
+# Slash command discovery
+# ---------------------------------------------------------------------------
+
+@app.get("/commands")
+async def list_commands():
+    """Return available slash commands from the orchestrator."""
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            resp = await client.get(f"{ORCHESTRATOR_URL}/commands")
+            resp.raise_for_status()
+            return resp.json()
+    except Exception as e:
+        logger.warning("Failed to fetch commands from orchestrator: %s", e)
+        return []
+
+
+# ---------------------------------------------------------------------------
 # Health check
 # ---------------------------------------------------------------------------
 
