@@ -8,9 +8,9 @@ Claude 기반 다계층 자동화 시스템
 
 | 계층 | 설명 | 참조 문서 |
 |---|---|---|
-| **Client** | Windows 터미널 클라이언트 (UI 전용) | `skills/client/CLAUDE.md` |
-| **Gateway** | FastAPI + 세션 매니저 | `skills/gateway/CLAUDE.md` |
-| **Orchestrator** | 에이전트 실행 엔진 | `skills/orchestrator/CLAUDE.md` |
+| **Client** | Windows 터미널 클라이언트 (UI 전용) | `client/CLAUDE.md` |
+| **Gateway** | FastAPI + 세션 매니저 | `gateway/CLAUDE.md` |
+| **Orchestrator** | 에이전트 실행 엔진 | `orchestrator/CLAUDE.md` |
 
 ## 워크플로우
 
@@ -192,6 +192,24 @@ subsystem: 간략한 설명 (최대 72자, 마침표 없음)
 
 - **pre-commit**: 계층별 pytest 실행 — 테스트 실패 시 커밋 차단
 - **commit-msg**: Linux kernel 커밋 메시지 형식 검증
+
+## 배포
+
+systemd 유닛 파일은 `deploy/` 디렉토리에 있습니다:
+
+| 파일 | 설명 |
+|---|---|
+| `deploy/maha-gateway.service` | 게이트웨이 서비스 (포트 8000) |
+| `deploy/maha-orchestrator.service` | 오케스트레이터 서비스 (포트 9000) |
+
+```bash
+# 서비스 파일 설치
+sudo cp deploy/maha-gateway.service /etc/systemd/system/
+sudo cp deploy/maha-orchestrator.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable maha-gateway maha-orchestrator
+sudo systemctl start maha-gateway maha-orchestrator
+```
 
 ## 변경 이력
 

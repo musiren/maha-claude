@@ -28,6 +28,7 @@ from typing import AsyncIterator
 
 import httpx
 from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from auth import JWTError, authenticate_user, create_access_token, decode_token
@@ -70,6 +71,13 @@ ORCHESTRATOR_URL = os.environ.get("ORCHESTRATOR_URL", "http://localhost:9000")
 # ---------------------------------------------------------------------------
 
 app = FastAPI(title="Maha Gateway", version="1.0.0")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=os.environ.get("CORS_ORIGINS", "*").split(","),
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 _bearer = HTTPBearer()
 
 
