@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Maha Claude</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg0:#0f0f10;--bg1:#17171a;--bg2:#1e1e24;--bg3:#26262e;
+  --border:#2e2e38;--text:#e2e2ef;--muted:#8888a8;--dim:#55556a;
+  --blue:#4f8eff;--blue2:#2d5fcc;--green:#3ecf8e;--red:#f56565;
+  --amber:#f6a623;--purple:#a78bfa;
+  --sidebar:240px;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  background:var(--bg0);color:var(--text);height:100vh;overflow:hidden;display:flex}
+
+/* ── SIDEBAR ─────────────────────────────────────────── */
+#sidebar{
+  width:var(--sidebar);min-width:var(--sidebar);
+  background:var(--bg1);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+}
+.sb-head{
+  padding:14px 12px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;
+}
+.logo{
+  width:32px;height:32px;border-radius:8px;flex-shrink:0;
+  background:linear-gradient(135deg,var(--blue),var(--purple));
+  display:flex;align-items:center;justify-content:center;
+  font-weight:700;font-size:15px;
+}
+.sb-title{font-weight:600;font-size:14px}
+.sb-body{flex:1;overflow-y:auto;padding:8px}
+.sb-label{
+  font-size:10px;text-transform:uppercase;letter-spacing:.08em;
+  color:var(--dim);padding:8px 6px 4px;
+}
+.cmd-row{
+  display:flex;align-items:center;gap:8px;
+  padding:7px 8px;border-radius:7px;cursor:pointer;
+  transition:background .15s;
+}
+.cmd-row:hover{background:var(--bg3)}
+.cmd-row .cmd-icon{
+  width:26px;height:26px;border-radius:6px;flex-shrink:0;
+  background:var(--bg3);display:flex;align-items:center;justify-content:center;
+  font-size:12px;
+}
+.cmd-row .cmd-info{min-width:0}
+.cmd-row .cmd-name{
+  font-family:'SF Mono',Consolas,monospace;font-size:12px;
+  color:var(--blue);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.cmd-row .cmd-desc{font-size:11px;color:var(--muted);margin-top:1px}
+.cmd-row .badge{
+  margin-left:auto;font-size:10px;padding:1px 5px;border-radius:4px;
+  background:rgba(246,166,35,.15);color:var(--amber);flex-shrink:0;
+}
+.sb-foot{
+  padding:10px 12px;border-top:1px solid var(--border);
+}
+.session-line{font-size:11px;color:var(--muted);line-height:1.7}
+.session-line b{color:var(--text)}
+.btn-logout{
+  margin-top:8px;width:100%;padding:6px;border-radius:7px;
+  background:transparent;border:1px solid var(--border);
+  color:var(--muted);font-size:12px;cursor:pointer;transition:all .15s;
+}
+.btn-logout:hover{background:var(--bg3);color:var(--text)}
+
+/* ── MAIN ────────────────────────────────────────────── */
+#main{flex:1;display:flex;flex-direction:column;min-width:0}
+.top-bar{
+  padding:0 20px;height:48px;border-bottom:1px solid var(--border);
+  background:var(--bg1);display:flex;align-items:center;justify-content:space-between;
+  flex-shrink:0;
+}
+.top-left{display:flex;align-items:center;gap:8px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--green)}
+.dot.off{background:var(--red)}
+.top-title{font-size:13px;font-weight:500}
+.top-right{font-size:11px;color:var(--muted)}
+
+/* messages */
+#msgs{
+  flex:1;overflow-y:auto;padding:24px 20px;
+  display:flex;flex-direction:column;gap:20px;
+}
+#msgs::-webkit-scrollbar{width:5px}
+#msgs::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+/* welcome */
+.welcome{
+  flex:1;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:14px;
+  color:var(--muted);text-align:center;
+}
+.welcome .wlogo{
+  width:60px;height:60px;border-radius:16px;
+  background:linear-gradient(135deg,var(--blue),var(--purple));
+  display:flex;align-items:center;justify-content:center;
+  font-size:28px;font-weight:700;margin-bottom:4px;
+}
+.welcome h2{font-size:18px;font-weight:600;color:var(--text)}
+.welcome p{font-size:13px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:4px}
+.chip{
+  padding:5px 12px;border-radius:20px;font-size:12px;
+  border:1px solid var(--border);cursor:pointer;
+  font-family:monospace;color:var(--blue);background:var(--bg2);
+  transition:background .15s;
+}
+.chip:hover{background:var(--bg3)}
+
+/* message rows */
+.msg{display:flex;gap:10px;max-width:100%}
+.msg.user{flex-direction:row-reverse}
+.avatar{
+  width:30px;height:30px;border-radius:50%;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:700;
+}
+.msg.user .avatar{background:linear-gradient(135deg,var(--blue),var(--purple))}
+.msg.bot  .avatar{background:linear-gradient(135deg,var(--green),var(--blue))}
+.msg-body{max-width:78%;display:flex;flex-direction:column;gap:4px}
+.msg.user .msg-body{align-items:flex-end}
+.bubble{
+  padding:10px 14px;border-radius:14px;font-size:14px;line-height:1.6;
+  word-break:break-word;white-space:pre-wrap;
+}
+.msg.user .bubble{
+  background:var(--bg3);border-bottom-right-radius:4px;
+}
+.msg.bot .bubble{
+  background:var(--bg2);border-bottom-left-radius:4px;
+}
+.bubble.error{background:rgba(245,101,101,.12);color:#fca5a5;border:1px solid rgba(245,101,101,.25)}
+.bubble pre{
+  background:var(--bg0);border:1px solid var(--border);
+  border-radius:6px;padding:10px;overflow-x:auto;
+  font-size:12px;line-height:1.5;margin-top:6px;white-space:pre;
+}
+.cursor::after{content:'▋';animation:blink 1s step-end infinite;color:var(--blue)}
+@keyframes blink{50%{opacity:0}}
+.ts{font-size:10px;color:var(--dim)}
+
+/* approval card */
+.approval{
+  background:rgba(246,166,35,.08);border:1px solid rgba(246,166,35,.3);
+  border-radius:10px;padding:12px 14px;
+}
+.approval p{font-size:13px;color:var(--amber);margin-bottom:10px}
+.approval-btns{display:flex;gap:8px}
+.btn-ok{padding:5px 14px;border-radius:7px;border:none;cursor:pointer;
+  font-size:12px;font-weight:600;background:var(--green);color:#000;transition:opacity .15s}
+.btn-no{padding:5px 14px;border-radius:7px;border:none;cursor:pointer;
+  font-size:12px;font-weight:600;background:var(--red);color:#fff;transition:opacity .15s}
+.btn-ok:hover,.btn-no:hover{opacity:.8}
+.btn-ok:disabled,.btn-no:disabled{opacity:.4;cursor:not-allowed}
+
+/* ── INPUT ───────────────────────────────────────────── */
+.input-wrap{
+  padding:14px 20px;border-top:1px solid var(--border);
+  background:var(--bg1);flex-shrink:0;
+}
+.input-rel{position:relative}
+.suggestions{
+  position:absolute;bottom:100%;left:0;right:0;margin-bottom:6px;
+  background:var(--bg2);border:1px solid var(--border);border-radius:10px;
+  overflow:hidden;z-index:10;
+}
+.sugg{
+  display:flex;gap:10px;align-items:center;
+  padding:8px 12px;cursor:pointer;transition:background .12s;
+}
+.sugg:hover,.sugg.active{background:var(--bg3)}
+.sugg .s-cmd{font-family:monospace;font-size:13px;color:var(--blue);min-width:110px}
+.sugg .s-desc{font-size:12px;color:var(--muted)}
+.input-box{
+  display:flex;align-items:flex-end;gap:8px;
+  background:var(--bg2);border:1px solid var(--border);
+  border-radius:12px;padding:8px 8px 8px 14px;
+  transition:border-color .2s;
+}
+.input-box:focus-within{border-color:var(--blue)}
+#inp{
+  flex:1;background:transparent;border:none;outline:none;
+  color:var(--text);font-size:14px;resize:none;
+  min-height:22px;max-height:120px;line-height:1.55;font-family:inherit;
+}
+#inp::placeholder{color:var(--dim)}
+.send{
+  width:34px;height:34px;border-radius:8px;border:none;cursor:pointer;
+  background:var(--blue);color:#fff;display:flex;align-items:center;
+  justify-content:center;flex-shrink:0;transition:background .15s;
+}
+.send:hover{background:var(--blue2)}
+.send:disabled{background:var(--bg3);cursor:not-allowed}
+.send svg{pointer-events:none}
+
+/* ── LOGIN ───────────────────────────────────────────── */
+#login-screen{
+  position:fixed;inset:0;background:var(--bg0);
+  display:flex;align-items:center;justify-content:center;z-index:100;
+}
+.login-card{
+  width:340px;background:var(--bg2);border:1px solid var(--border);
+  border-radius:16px;padding:32px;
+}
+.login-logo{
+  text-align:center;margin-bottom:24px;
+}
+.login-logo .ll{
+  width:52px;height:52px;border-radius:14px;margin:0 auto 10px;
+  background:linear-gradient(135deg,var(--blue),var(--purple));
+  display:flex;align-items:center;justify-content:center;
+  font-size:22px;font-weight:700;
+}
+.login-logo h2{font-size:18px;font-weight:600}
+.login-logo p{font-size:12px;color:var(--muted);margin-top:2px}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
+.field input{
+  width:100%;background:var(--bg3);border:1px solid var(--border);
+  border-radius:8px;padding:9px 12px;color:var(--text);font-size:14px;
+  outline:none;transition:border-color .2s;
+}
+.field input:focus{border-color:var(--blue)}
+.btn-login{
+  width:100%;padding:10px;border-radius:9px;border:none;
+  background:var(--blue);color:#fff;font-size:14px;font-weight:600;
+  cursor:pointer;margin-top:6px;transition:background .15s;
+}
+.btn-login:hover{background:var(--blue2)}
+.btn-login:disabled{background:var(--bg3);cursor:not-allowed}
+.login-err{font-size:12px;color:var(--red);text-align:center;margin-top:8px;min-height:16px}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="ll">M</div>
+      <h2>Maha Claude</h2>
+      <p>Gateway에 연결하여 시작하세요</p>
+    </div>
+    <div class="field">
+      <label>Gateway URL</label>
+      <input id="gw-url" value="http://localhost:8000">
+    </div>
+    <div class="field">
+      <label>사용자명</label>
+      <input id="l-user" placeholder="admin" autocomplete="username">
+    </div>
+    <div class="field">
+      <label>비밀번호</label>
+      <input id="l-pass" type="password" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="btn-login" id="l-btn" onclick="doLogin()">로그인</button>
+    <div class="login-err" id="l-err"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="sidebar" style="display:none">
+  <div class="sb-head">
+    <div class="logo">M</div>
+    <span class="sb-title">Maha Claude</span>
+  </div>
+  <div class="sb-body">
+    <div class="sb-label">슬래시 커맨드</div>
+    <div id="cmd-list"></div>
+  </div>
+  <div class="sb-foot">
+    <div class="session-line">세션: <b id="s-id">-</b></div>
+    <div class="session-line">사용자: <b id="s-user">-</b></div>
+    <button class="btn-logout" onclick="doLogout()">로그아웃</button>
+  </div>
+</div>
+
+<div id="main" style="display:none">
+  <div class="top-bar">
+    <div class="top-left">
+      <span class="dot" id="status-dot"></span>
+      <span class="top-title">채팅</span>
+    </div>
+    <span class="top-right" id="gw-label"></span>
+  </div>
+
+  <div id="msgs">
+    <div class="welcome" id="welcome">
+      <div class="wlogo">M</div>
+      <h2>Maha Claude에 오신 것을 환영합니다</h2>
+      <p>슬래시 커맨드를 입력하거나 아래 버튼을 눌러 시작하세요</p>
+      <div class="chips" id="chips"></div>
+    </div>
+  </div>
+
+  <div class="input-wrap">
+    <div class="input-rel">
+      <div class="suggestions" id="suggs" style="display:none"></div>
+      <div class="input-box">
+        <textarea id="inp" rows="1"
+          placeholder="메시지 입력...  ( /  로 커맨드 시작 )"
+          oninput="onInput(this)" onkeydown="onKey(event)"></textarea>
+        <button class="send" id="send-btn" onclick="sendMsg()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <line x1="22" y1="2" x2="11" y2="13"/>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── state ──────────────────────────────────────────────
+let GW = 'http://localhost:8000';
+let token = null, sessId = null, userName = null;
+let cmds = [];
+let busy = false;
+
+// ── login ──────────────────────────────────────────────
+document.getElementById('l-user').onkeydown = e => { if(e.key==='Enter') document.getElementById('l-pass').focus(); };
+document.getElementById('l-pass').onkeydown = e => { if(e.key==='Enter') doLogin(); };
+
+async function doLogin() {
+  GW = document.getElementById('gw-url').value.trim().replace(/\/$/,'');
+  const user = document.getElementById('l-user').value.trim();
+  const pass = document.getElementById('l-pass').value;
+  const btn  = document.getElementById('l-btn');
+  const err  = document.getElementById('l-err');
+  if (!user || !pass) return;
+  btn.disabled = true; btn.textContent = '로그인 중...'; err.textContent = '';
+  try {
+    const r = await fetch(`${GW}/auth/login`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({username:user, password:pass})
+    });
+    if (!r.ok) throw new Error((await r.json()).detail?.message || `HTTP ${r.status}`);
+    token = (await r.json()).token;
+    userName = user;
+    const sr = await fetch(`${GW}/session/start`, {
+      method:'POST', headers:{Authorization:`Bearer ${token}`}
+    });
+    if (!sr.ok) throw new Error('세션 시작 실패');
+    sessId = (await sr.json()).session_id;
+    await loadCmds();
+    showApp();
+  } catch(e) {
+    err.textContent = e.message;
+  } finally {
+    btn.disabled = false; btn.textContent = '로그인';
+  }
+}
+
+async function loadCmds() {
+  try {
+    const r = await fetch(`${GW}/commands`, {headers:{Authorization:`Bearer ${token}`}});
+    cmds = await r.json();
+  } catch { cmds = []; }
+  renderCmds();
+}
+
+function showApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('sidebar').style.display = 'flex';
+  document.getElementById('main').style.display = 'flex';
+  document.getElementById('s-id').textContent   = sessId.slice(0,10)+'…';
+  document.getElementById('s-user').textContent = userName;
+  document.getElementById('gw-label').textContent = GW;
+  document.getElementById('status-dot').className = 'dot';
+}
+
+function renderCmds() {
+  const icons = {'/echo':'💬','/help':'❓','/status':'📊','/run-tests':'🧪'};
+  document.getElementById('cmd-list').innerHTML = cmds.map(c => `
+    <div class="cmd-row" onclick="insertCmd('${c.command}')">
+      <div class="cmd-icon">${icons[c.command]||'⌘'}</div>
+      <div class="cmd-info">
+        <div class="cmd-name">${c.command}</div>
+        <div class="cmd-desc">${c.description}</div>
+      </div>
+      ${c.requires_approval ? '<span class="badge">승인</span>' : ''}
+    </div>`).join('');
+  document.getElementById('chips').innerHTML = cmds.map(c =>
+    `<div class="chip" onclick="insertCmd('${c.command}')">${c.command}</div>`
+  ).join('');
+}
+
+function insertCmd(cmd) {
+  const ta = document.getElementById('inp');
+  ta.value = cmd + ' '; ta.focus(); resize(ta); hideSuggs();
+}
+
+// ── logout ─────────────────────────────────────────────
+async function doLogout() {
+  try {
+    await fetch(`${GW}/session/end`, {
+      method:'POST', headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},
+      body: JSON.stringify({session_id: sessId})
+    });
+  } catch {}
+  token = sessId = userName = null;
+  document.getElementById('sidebar').style.display = 'none';
+  document.getElementById('main').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('msgs').innerHTML =
+    '<div class="welcome" id="welcome"><div class="wlogo">M</div>' +
+    '<h2>Maha Claude에 오신 것을 환영합니다</h2>' +
+    '<p>슬래시 커맨드를 입력하거나 아래 버튼을 눌러 시작하세요</p>' +
+    '<div class="chips" id="chips"></div></div>';
+}
+
+// ── input ──────────────────────────────────────────────
+function resize(ta) {
+  ta.style.height = 'auto';
+  ta.style.height = Math.min(ta.scrollHeight, 120) + 'px';
+}
+
+function onInput(ta) {
+  resize(ta);
+  const v = ta.value;
+  if (v.startsWith('/')) {
+    const m = cmds.filter(c => c.command.toLowerCase().startsWith(v.toLowerCase()));
+    showSuggs(m);
+  } else hideSuggs();
+}
+
+function onKey(e) {
+  const s = document.getElementById('suggs');
+  if (s.style.display !== 'none') {
+    const items = s.querySelectorAll('.sugg');
+    const cur = s.querySelector('.sugg.active');
+    let idx = [...items].indexOf(cur);
+    if (e.key === 'ArrowDown') { e.preventDefault(); activate(items, (idx+1)%items.length); return; }
+    if (e.key === 'ArrowUp')   { e.preventDefault(); activate(items, (idx-1+items.length)%items.length); return; }
+    if ((e.key === 'Tab' || e.key === 'Enter') && cur) { e.preventDefault(); cur.click(); return; }
+    if (e.key === 'Escape') { hideSuggs(); return; }
+  }
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); }
+}
+
+function activate(items, idx) {
+  items.forEach(i => i.classList.remove('active'));
+  items[idx].classList.add('active');
+}
+
+function showSuggs(list) {
+  const el = document.getElementById('suggs');
+  if (!list.length) { hideSuggs(); return; }
+  el.innerHTML = list.map((c,i) => `
+    <div class="sugg${i===0?' active':''}" onclick="insertCmd('${c.command}')">
+      <span class="s-cmd">${c.command}</span>
+      <span class="s-desc">${c.description}${c.requires_approval?' · 승인 필요':''}</span>
+    </div>`).join('');
+  el.style.display = 'block';
+}
+function hideSuggs() { document.getElementById('suggs').style.display = 'none'; }
+
+// ── send ───────────────────────────────────────────────
+async function sendMsg() {
+  if (busy) return;
+  const ta = document.getElementById('inp');
+  const cmd = ta.value.trim();
+  if (!cmd) return;
+  ta.value = ''; resize(ta); hideSuggs();
+
+  hideWelcome();
+  addUserMsg(cmd);
+  const botEl = addBotMsg();
+  busy = true;
+  document.getElementById('send-btn').disabled = true;
+
+  try {
+    const r = await fetch(`${GW}/command`, {
+      method:'POST',
+      headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},
+      body: JSON.stringify({session_id:sessId, command:cmd})
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    await streamSSE(r, botEl);
+  } catch(e) {
+    setBubble(botEl, `오류: ${e.message}`, true);
+  } finally {
+    busy = false;
+    document.getElementById('send-btn').disabled = false;
+    botEl.querySelector('.bubble')?.classList.remove('cursor');
+    scrollEnd();
+  }
+}
+
+// ── SSE stream ─────────────────────────────────────────
+async function streamSSE(resp, botEl) {
+  const reader = resp.body.getReader();
+  const dec = new TextDecoder();
+  let buf = '', text = '', afterApproval = false;
+
+  while (true) {
+    const {done, value} = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, {stream:true});
+    const lines = buf.split('\n'); buf = lines.pop();
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue;
+      const raw = line.slice(6);
+      if (raw === '[DONE]') return;
+      try {
+        const obj = JSON.parse(raw);
+        if (obj.type === 'text') {
+          if (afterApproval) {
+            const nb = addBotMsg(); afterApproval = false;
+            botEl = nb; text = '';
+          }
+          text += obj.content || '';
+          setBubble(botEl, text);
+        } else if (obj.type === 'error') {
+          setBubble(botEl, obj.content || '오류', true); return;
+        } else if (obj.type === 'approval') {
+          showApproval(botEl, obj); afterApproval = true;
+        }
+      } catch { text += raw; setBubble(botEl, text); }
+      scrollEnd();
+    }
+  }
+}
+
+// ── approval ───────────────────────────────────────────
+function showApproval(botEl, obj) {
+  const b = botEl.querySelector('.bubble');
+  b.classList.remove('cursor');
+  b.innerHTML = `<div class="approval">
+    <p>⚠️ ${escHtml(obj.message || '승인이 필요합니다.')}</p>
+    <div class="approval-btns">
+      <button class="btn-ok" onclick="resolve('${obj.approval_id}',true,this)">승인</button>
+      <button class="btn-no" onclick="resolve('${obj.approval_id}',false,this)">거절</button>
+    </div>
+  </div>`;
+  scrollEnd();
+}
+
+async function resolve(aid, approved, btn) {
+  btn.closest('.approval-btns').querySelectorAll('button').forEach(b=>b.disabled=true);
+  const label = approved ? '✅ 승인됨 — 실행 중…' : '❌ 거절됨';
+  const color = approved ? 'var(--green)' : 'var(--red)';
+  btn.closest('.approval').innerHTML = `<p style="color:${color}">${label}</p>`;
+  try {
+    await fetch(`${GW}/command/approve`, {
+      method:'POST',
+      headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},
+      body: JSON.stringify({session_id:sessId, approval_id:aid, approved})
+    });
+  } catch(e) { console.error(e); }
+}
+
+// ── DOM helpers ────────────────────────────────────────
+function hideWelcome() {
+  document.getElementById('welcome')?.remove();
+}
+
+function addUserMsg(text) {
+  const el = document.createElement('div');
+  el.className = 'msg user';
+  el.innerHTML = `
+    <div class="avatar">${(userName||'U')[0].toUpperCase()}</div>
+    <div class="msg-body">
+      <div class="bubble">${escHtml(text)}</div>
+      <span class="ts">${timeStr()}</span>
+    </div>`;
+  document.getElementById('msgs').appendChild(el);
+  scrollEnd();
+}
+
+function addBotMsg() {
+  const el = document.createElement('div');
+  el.className = 'msg bot';
+  el.innerHTML = `
+    <div class="avatar">M</div>
+    <div class="msg-body">
+      <div class="bubble cursor"></div>
+      <span class="ts">${timeStr()}</span>
+    </div>`;
+  document.getElementById('msgs').appendChild(el);
+  scrollEnd();
+  return el;
+}
+
+function setBubble(el, text, isErr=false) {
+  const b = el.querySelector('.bubble');
+  b.className = 'bubble cursor' + (isErr?' error':'');
+  const t = text.trim();
+  if ((t.startsWith('{') || t.startsWith('[')) && !isErr) {
+    try { b.innerHTML = `<pre>${escHtml(JSON.stringify(JSON.parse(t),null,2))}</pre>`; return; }
+    catch {}
+  }
+  if (text.includes('\n') && !isErr) {
+    b.innerHTML = `<pre>${escHtml(text)}</pre>`;
+  } else {
+    b.textContent = text;
+  }
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function timeStr() {
+  return new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
+}
+function scrollEnd() {
+  const m = document.getElementById('msgs');
+  m.scrollTop = m.scrollHeight;
+}
+</script>
+</body>
+</html>
