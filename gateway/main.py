@@ -30,9 +30,7 @@ import httpx
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import JWTError
-
-from auth import authenticate_user, create_access_token, decode_token
+from auth import JWTError, authenticate_user, create_access_token, decode_token
 from models import (
     ApprovalRequest,
     CommandRequest,
