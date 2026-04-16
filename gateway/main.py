@@ -167,6 +167,16 @@ async def command_approve(
     logger.info("Approval resolved: session=%s approval=%s approved=%s",
                 req.session_id, req.approval_id, req.approved)
 
+    # Forward approval decision to orchestrator
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            await client.post(
+                f"{ORCHESTRATOR_URL}/approve",
+                json={"approval_id": req.approval_id, "approved": req.approved},
+            )
+    except Exception as e:
+        logger.warning("Failed to forward approval to orchestrator: %s", e)
+
 
 # ---------------------------------------------------------------------------
 # SSE streaming

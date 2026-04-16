@@ -1,0 +1,33 @@
+[Unit]
+Description=Maha Orchestrator (Agent Execution Engine)
+After=network.target maha-gateway.service
+Wants=maha-gateway.service
+
+[Service]
+Type=simple
+User=maha
+Group=maha
+WorkingDirectory=/opt/maha-claude/orchestrator
+
+EnvironmentFile=-/etc/maha-orchestrator.env
+Environment=ORCHESTRATOR_HOST=0.0.0.0
+Environment=ORCHESTRATOR_PORT=9000
+
+ExecStart=/opt/maha-claude/.venv/bin/python main.py
+
+Restart=on-failure
+RestartSec=5
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/var/log/maha
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=maha-orchestrator
+
+[Install]
+WantedBy=multi-user.target
