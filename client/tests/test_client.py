@@ -3,14 +3,10 @@ Tests for client/main.py
 
 All HTTP calls are mocked; no real network connections.
 """
-import os
-import sys
 import unittest
 from unittest.mock import MagicMock, patch
 
 import requests
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from main import Client
 

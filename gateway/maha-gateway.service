@@ -1,0 +1,38 @@
+[Unit]
+Description=Maha Gateway (FastAPI + Session Manager)
+After=network.target redis.service
+Wants=redis.service
+
+[Service]
+Type=simple
+User=maha
+Group=maha
+WorkingDirectory=/opt/maha-claude/gateway
+
+# Environment — override in /etc/maha-gateway.env
+EnvironmentFile=-/etc/maha-gateway.env
+Environment=GATEWAY_HOST=0.0.0.0
+Environment=GATEWAY_PORT=8000
+Environment=GATEWAY_ENV=production
+
+ExecStart=/opt/maha-claude/.venv/bin/python main.py
+
+# Restart policy
+Restart=on-failure
+RestartSec=5
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/var/log/maha
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=maha-gateway
+
+[Install]
+WantedBy=multi-user.target
