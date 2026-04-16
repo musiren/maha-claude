@@ -28,16 +28,14 @@ if [[ -z "$PYTEST_BIN" ]]; then
     exit 0
 fi
 
-# Find component directories that contain tests.
-# A component directory is any direct subdirectory of the repo that
-# contains a tests/ folder with test_*.py files.
+# Find component directories that contain <component>/tests/test_*.py.
+# Pattern: REPO_ROOT/<component>/tests/test_*.py  (depth 3 from root)
 mapfile -t COMPONENT_DIRS < <(
-    find "$REPO_ROOT" -mindepth 2 -maxdepth 2 \
+    find "$REPO_ROOT" -mindepth 3 -maxdepth 3 \
         -not -path '*/.git/*' \
         -not -path '*/__pycache__/*' \
         \( -name 'test_*.py' -o -name '*_test.py' \) \
-        -exec dirname {} \; \
-        | xargs -I{} dirname {} \
+        | sed 's|/tests/[^/]*$||' \
         | sort -u
 )
 
