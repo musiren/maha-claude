@@ -5,15 +5,22 @@ Maha Web Client
 Serves client/web/index.html on WEB_PORT (default 3000)
 and opens a browser window automatically.
 
-Config file (config.json) is read from the same directory.
-Values in config.json can be overridden by environment variables.
+Reads settings from the shared root config.json (client section).
+Environment variables always override config file values.
+
+Config lookup order (first found wins):
+  1. CONFIG_PATH env var
+  2. Beside the executable (when frozen)
+  3. ../config.json  (repo root, one level up from client/)
+  4. ./config.json   (same directory as this script)
 
 PyInstaller compatible: resolves paths from sys._MEIPASS when frozen.
 
-Environment variables:
+Environment variables (override config.json):
+  GATEWAY_URL   Gateway address shown in UI
   WEB_HOST      Bind host (default: 127.0.0.1)
   WEB_PORT      Bind port (default: 3000)
-  CONFIG_PATH   Path to config file (default: <script_dir>/config.json)
+  CONFIG_PATH   Explicit path to config.json
 """
 
 import json
@@ -29,42 +36,50 @@ _BASE_DIR = (
     else os.path.dirname(os.path.abspath(__file__))
 )
 
-_HTML: bytes = b""
-_CONFIG: dict = {}
-
 
 def _load_config() -> dict:
-    # When frozen: check next to the exe first so users can edit it,
-    # then fall back to the bundled default inside the archive.
+    """Load client section from shared config.json."""
     if "CONFIG_PATH" in os.environ:
         candidates = [os.environ["CONFIG_PATH"]]
     elif getattr(sys, "frozen", False):
         exe_dir = os.path.dirname(sys.executable)
         candidates = [
-            os.path.join(exe_dir, "config.json"),          # editable, beside exe
-            os.path.join(_BASE_DIR, "config.json"),        # bundled default
+            os.path.join(exe_dir, "config.json"),       # editable, beside exe
+            os.path.join(_BASE_DIR, "config.json"),     # bundled default
         ]
     else:
-        candidates = [os.path.join(_BASE_DIR, "config.json")]
+        candidates = [
+            os.path.join(_BASE_DIR, "..", "config.json"),  # repo root
+            os.path.join(_BASE_DIR, "config.json"),        # client/
+        ]
 
-    cfg: dict = {}
-    for config_path in candidates:
+    raw: dict = {}
+    for path in candidates:
         try:
-            with open(config_path, encoding="utf-8") as f:
-                cfg = json.load(f)
+            with open(os.path.normpath(path), encoding="utf-8") as f:
+                raw = json.load(f)
             break
         except FileNotFoundError:
             continue
         except json.JSONDecodeError as e:
-            print(f"[경고] {config_path} 파싱 오류: {e}")
+            print(f"[경고] {path} 파싱 오류: {e}")
             break
 
-    # Environment variables override config file values
+    # Support both flat {"gateway_url": ...} and nested {"client": {...}}
+    cfg: dict = raw.get("client", raw)
+
+    # Environment variables take highest priority
     if "GATEWAY_URL" in os.environ:
         cfg["gateway_url"] = os.environ["GATEWAY_URL"]
 
     cfg.setdefault("gateway_url", "http://localhost:8000")
+    cfg.setdefault("web_host", "127.0.0.1")
+    cfg.setdefault("web_port", 3000)
     return cfg
+
+
+_HTML: bytes = b""
+_CONFIG: dict = {}
 
 
 class _Handler(BaseHTTPRequestHandler):
@@ -95,8 +110,8 @@ def main():
 
     _CONFIG = _load_config()
 
-    host = os.environ.get("WEB_HOST", "127.0.0.1")
-    port = int(os.environ.get("WEB_PORT", "3000"))
+    host = os.environ.get("WEB_HOST", str(_CONFIG["web_host"]))
+    port = int(os.environ.get("WEB_PORT", str(_CONFIG["web_port"])))
 
     server = HTTPServer((host, port), _Handler)
     url = f"http://{host}:{port}"

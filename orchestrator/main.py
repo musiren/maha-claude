@@ -13,8 +13,10 @@ Environment variables:
   TEST_ROOT           Root directory for test runner
 """
 
+import json
 import logging
 import os
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
@@ -27,6 +29,25 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(name)s — %(message)s",
 )
+logger = logging.getLogger(__name__)
+
+
+def _load_orchestrator_config() -> dict:
+    """Return orchestrator section from the nearest config.json."""
+    script_dir = Path(__file__).parent
+    for path in [script_dir.parent / "config.json", script_dir / "config.json"]:
+        try:
+            with open(path, encoding="utf-8") as f:
+                data = json.load(f)
+            return data.get("orchestrator", data)
+        except FileNotFoundError:
+            continue
+        except json.JSONDecodeError as e:
+            logger.warning("config.json parse error: %s", e)
+    return {}
+
+
+_cfg = _load_orchestrator_config()
 
 app = FastAPI(title="Maha Orchestrator", version="1.0.0")
 
@@ -84,6 +105,6 @@ async def health():
 
 if __name__ == "__main__":
     import uvicorn
-    host = os.environ.get("ORCHESTRATOR_HOST", "0.0.0.0")
-    port = int(os.environ.get("ORCHESTRATOR_PORT", "9000"))
+    host = os.environ.get("ORCHESTRATOR_HOST", str(_cfg.get("host", "0.0.0.0")))
+    port = int(os.environ.get("ORCHESTRATOR_PORT", str(_cfg.get("port", 9000))))
     uvicorn.run("main:app", host=host, port=port, reload=False)

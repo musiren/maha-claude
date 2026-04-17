@@ -24,6 +24,7 @@ import asyncio
 import json
 import logging
 import os
+from pathlib import Path
 from typing import AsyncIterator
 
 import httpx
@@ -61,10 +62,30 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Config
+# Config — reads from shared root config.json (gateway section).
+# Environment variables always override config file values.
 # ---------------------------------------------------------------------------
 
-ORCHESTRATOR_URL = os.environ.get("ORCHESTRATOR_URL", "http://localhost:9000")
+def _load_gateway_config() -> dict:
+    """Return gateway section from the nearest config.json."""
+    script_dir = Path(__file__).parent
+    for path in [script_dir.parent / "config.json", script_dir / "config.json"]:
+        try:
+            with open(path, encoding="utf-8") as f:
+                data = json.load(f)
+            return data.get("gateway", data)
+        except FileNotFoundError:
+            continue
+        except json.JSONDecodeError as e:
+            logger.warning("config.json parse error: %s", e)
+    return {}
+
+
+_cfg = _load_gateway_config()
+
+ORCHESTRATOR_URL = os.environ.get(
+    "ORCHESTRATOR_URL", _cfg.get("orchestrator_url", "http://localhost:9000")
+)
 
 # ---------------------------------------------------------------------------
 # App
@@ -73,7 +94,7 @@ ORCHESTRATOR_URL = os.environ.get("ORCHESTRATOR_URL", "http://localhost:9000")
 app = FastAPI(title="Maha Gateway", version="1.0.0")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.environ.get("CORS_ORIGINS", "*").split(","),
+    allow_origins=os.environ.get("CORS_ORIGINS", _cfg.get("cors_origins", "*")).split(","),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -264,6 +285,6 @@ async def health():
 if __name__ == "__main__":
     import uvicorn
 
-    host = os.environ.get("GATEWAY_HOST", "0.0.0.0")
-    port = int(os.environ.get("GATEWAY_PORT", "8000"))
+    host = os.environ.get("GATEWAY_HOST", str(_cfg.get("host", "0.0.0.0")))
+    port = int(os.environ.get("GATEWAY_PORT", str(_cfg.get("port", 8000))))
     uvicorn.run("main:app", host=host, port=port, reload=False)

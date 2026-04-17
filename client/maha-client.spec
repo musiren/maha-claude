@@ -17,7 +17,7 @@ a = Analysis(
     binaries=[],
     datas=[
         ("web/index.html", "web"),
-        ("config.json", "."),
+        ("../config.json", "."),
     ],
     hiddenimports=[],
     hookspath=[],
