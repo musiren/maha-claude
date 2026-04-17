@@ -2,6 +2,12 @@
 
 Claude 기반 다계층 자동화 시스템
 
+## 웹 클라이언트 UI
+
+![Web Client UI](docs/images/web-ui.png)
+
+> `python3 client/web_main.py` → `http://localhost:3000`
+
 ## 아키텍처
 
 시스템은 3개의 독립 계층으로 구성됩니다:
